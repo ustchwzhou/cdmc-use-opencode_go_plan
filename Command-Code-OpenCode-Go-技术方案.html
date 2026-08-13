@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Command Code 通过自定义 Mod 和 cc-switch 使用 OpenCode Go 订阅的技术方案、使用手册及排障记录。">
+  <title>Command Code × OpenCode Go｜技术方案与使用手册</title>
+  <style>
+    :root{
+      --bg:#f3f6fb;--surface:#fff;--soft:#f7f9fc;--ink:#162033;--muted:#60708a;
+      --line:#dfe6f0;--brand:#5548d9;--brand2:#7569ee;--cyan:#109ba5;
+      --green:#17845b;--amber:#ae680d;--red:#bd3d4b;--code:#101827;--codeink:#e9effa;
+      --shadow:0 18px 48px rgba(31,44,75,.10);--radius:18px
+    }
+    html[data-theme="dark"]{
+      --bg:#0d1220;--surface:#151c2d;--soft:#111827;--ink:#e9eef8;--muted:#a1aec4;
+      --line:#29344a;--brand:#938aff;--brand2:#aaa4ff;--cyan:#4ac4cc;
+      --green:#50c892;--amber:#f1b85c;--red:#f07a86;--code:#090e18;--codeink:#edf3ff;
+      --shadow:0 18px 48px rgba(0,0,0,.28)
+    }
+    *{box-sizing:border-box}html{scroll-behavior:smooth}
+    body{
+      margin:0;color:var(--ink);
+      background:radial-gradient(circle at 88% 4%,rgba(116,104,239,.13),transparent 28rem),
+                 radial-gradient(circle at 7% 35%,rgba(15,159,168,.08),transparent 27rem),var(--bg);
+      font:15.5px/1.75 "Segoe UI","Microsoft YaHei UI","PingFang SC",system-ui,sans-serif
+    }
+    a{color:var(--brand);text-decoration:none}a:hover{text-decoration:underline}
+    code,pre{font-family:"Cascadia Code","SFMono-Regular",Consolas,monospace}
+    .page{display:grid;grid-template-columns:270px minmax(0,1fr);max-width:1500px;min-height:100vh;margin:auto}
+    aside{
+      position:sticky;top:0;height:100vh;padding:30px 22px;border-right:1px solid var(--line);
+      background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(16px);overflow-y:auto
+    }
+    .brand{display:flex;align-items:center;gap:11px;margin-bottom:30px;color:var(--ink);font-weight:800;line-height:1.25}
+    .mark{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;color:#fff;
+      background:linear-gradient(135deg,var(--brand),var(--cyan));box-shadow:0 9px 22px rgba(85,72,217,.24);
+      font:900 17px/1 "Cascadia Code",monospace}
+    .brand small{display:block;color:var(--muted);font-weight:500}
+    nav strong{display:block;margin:21px 10px 8px;color:var(--muted);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+    nav a{display:block;margin:3px 0;padding:7px 10px;border-radius:9px;color:var(--muted);font-size:13px;transition:.18s}
+    nav a:hover,nav a.active{color:var(--brand);background:color-mix(in srgb,var(--brand) 10%,transparent);text-decoration:none}
+    .side-note{margin-top:26px;padding:13px;border:1px solid var(--line);border-radius:12px;color:var(--muted);background:var(--soft);font-size:12px}
+    main{min-width:0;padding:42px clamp(24px,5vw,74px) 80px}
+    .actions{display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px}
+    button{cursor:pointer;border:1px solid var(--line);border-radius:9px;padding:7px 11px;color:var(--ink);background:var(--surface);font:inherit;font-size:12px}
+    button:hover{border-color:var(--brand)}
+    .hero{position:relative;overflow:hidden;padding:clamp(34px,6vw,68px);border-radius:28px;color:#fff;
+      background:linear-gradient(122deg,rgba(8,14,38,.03),rgba(8,14,38,.25)),
+                 linear-gradient(135deg,#4d43cf 0%,#675ce9 47%,#148e9f 100%);
+      box-shadow:0 26px 70px rgba(55,50,157,.24)}
+    .hero:after{content:"";position:absolute;width:320px;height:320px;right:-100px;top:-130px;border:1px solid rgba(255,255,255,.25);
+      border-radius:50%;box-shadow:0 0 0 52px rgba(255,255,255,.05),0 0 0 104px rgba(255,255,255,.035)}
+    .eyebrow{display:inline-flex;align-items:center;margin-bottom:18px;padding:5px 10px;border:1px solid rgba(255,255,255,.3);
+      border-radius:999px;background:rgba(255,255,255,.11);font-size:12px;letter-spacing:.08em}
+    h1{max-width:880px;margin:0;font-size:clamp(34px,5vw,62px);line-height:1.08;letter-spacing:-.035em}
+    .hero p{max-width:800px;margin:20px 0 0;color:rgba(255,255,255,.87);font-size:17px}
+    .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}.meta span{padding:6px 11px;border-radius:999px;background:rgba(6,11,34,.2);font-size:12px}
+    section{scroll-margin-top:22px;margin-top:58px}.kicker{color:var(--brand);font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+    h2{margin:4px 0 13px;font-size:clamp(25px,3vw,36px);line-height:1.25;letter-spacing:-.025em}
+    h3{margin:30px 0 10px;font-size:19px;line-height:1.35}p{margin:8px 0 15px}.lead{max-width:920px;color:var(--muted);font-size:16px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:22px}
+    .card{padding:21px;border:1px solid var(--line);border-radius:var(--radius);background:color-mix(in srgb,var(--surface) 95%,transparent);
+      box-shadow:0 8px 25px rgba(31,44,75,.04)}
+    .card .num{color:var(--brand);font-size:27px;font-weight:850;line-height:1.1}.card strong{display:block;margin-top:8px}
+    .card p{margin:5px 0 0;color:var(--muted);font-size:13px}
+    .callout{margin:20px 0;padding:16px 18px;border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:12px;background:var(--surface)}
+    .callout.success{border-left-color:var(--green)}.callout.warning{border-left-color:var(--amber)}.callout.danger{border-left-color:var(--red)}
+    .callout strong{display:block;margin-bottom:4px}.callout p:last-child{margin-bottom:0}
+    .flow{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:24px;margin:26px 0;align-items:stretch}
+    .flow-step{position:relative;display:flex;flex-direction:column;justify-content:center;min-height:118px;padding:17px;border:1px solid var(--line);
+      border-radius:15px;text-align:center;background:var(--surface);box-shadow:var(--shadow)}
+    .flow-step:not(:last-child):after{content:"→";position:absolute;right:-21px;top:42%;color:var(--brand);font-size:20px;font-weight:900}
+    .flow-step b{color:var(--brand)}.flow-step small{display:block;margin-top:5px;color:var(--muted);line-height:1.45}
+    .table-wrap{overflow-x:auto;margin:19px 0;border:1px solid var(--line);border-radius:15px;background:var(--surface)}
+    table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+    th{color:var(--muted);background:var(--soft);font-size:12px;letter-spacing:.04em}tr:last-child td{border-bottom:0}
+    td code,p code,li code{padding:2px 6px;border-radius:6px;color:var(--brand);background:color-mix(in srgb,var(--brand) 9%,transparent);font-size:.9em}
+    .code-wrap{position:relative;margin:15px 0 21px}pre{overflow-x:auto;margin:0;padding:21px;border:1px solid #26344a;border-radius:14px;
+      color:var(--codeink);background:var(--code);line-height:1.65;tab-size:2}pre code{padding:0;color:inherit;background:transparent}
+    .copy{position:absolute;right:9px;top:9px;border-color:#34435b;color:#c6d2e5;background:#172236}
+    ol.steps{list-style:none;padding:0;counter-reset:step}ol.steps>li{position:relative;margin:17px 0;padding:3px 0 18px 53px;border-bottom:1px solid var(--line);counter-increment:step}
+    ol.steps>li:before{content:counter(step);position:absolute;left:0;top:0;display:grid;place-items:center;width:35px;height:35px;border-radius:11px;
+      color:#fff;background:linear-gradient(135deg,var(--brand),var(--cyan));font-weight:800}
+    .tag{display:inline-block;padding:3px 8px;border-radius:999px;color:var(--green);background:color-mix(in srgb,var(--green) 11%,transparent);font-size:11px;font-weight:750}
+    details{margin:10px 0;border:1px solid var(--line);border-radius:12px;background:var(--surface)}summary{cursor:pointer;padding:14px 16px;font-weight:700}
+    details>div{padding:0 16px 16px;color:var(--muted)}.check{padding:0;list-style:none}.check li{position:relative;margin:8px 0;padding-left:28px}
+    .check li:before{content:"✓";position:absolute;left:0;top:1px;color:var(--green);font-weight:900}.hash{word-break:break-all;font-size:12px}
+    footer{margin-top:65px;padding-top:23px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+    @media(max-width:1080px){.page{grid-template-columns:1fr}aside{display:none}main{padding-top:22px}.flow{grid-template-columns:1fr;gap:10px}
+      .flow-step:not(:last-child):after{content:"↓";right:50%;top:auto;bottom:-23px}}
+    @media(max-width:720px){main{padding-inline:15px}.hero{padding:31px 23px;border-radius:20px}.grid{grid-template-columns:1fr}}
+    @media print{body{background:#fff;font-size:11px}.page{display:block;max-width:none}aside,.actions,.copy{display:none!important}main{padding:0}
+      .hero{padding:30px;box-shadow:none;break-after:page}section{margin-top:30px}.card,.flow-step,.callout,details,.table-wrap{box-shadow:none;break-inside:avoid}
+      pre{white-space:pre-wrap;word-break:break-word}a{color:inherit}}
+  </style>
+</head>
+<body>
+<div class="page">
+  <aside>
+    <div class="brand"><span class="mark">C×O</span><span>Command Code × OpenCode Go<small>实施记录与使用手册</small></span></div>
+    <nav aria-label="文档目录">
+      <strong>概览</strong>
+      <a href="#summary">成果摘要</a><a href="#architecture">方案架构</a><a href="#deliverables">交付文件</a>
+      <strong>实施与使用</strong>
+      <a href="#prerequisites">前置条件</a><a href="#install">安装与更新</a><a href="#usage">日常使用</a><a href="#models">模型清单</a>
+      <strong>复盘</strong>
+      <a href="#implementation">实现要点</a><a href="#pitfalls">踩坑与心得</a><a href="#troubleshooting">排障手册</a>
+      <a href="#verification">验证与验收</a><a href="#rollback">回退与维护</a>
+    </nav>
+    <div class="side-note"><b>文档基线</b><br>Command Code 1.22.0<br>Windows / PowerShell<br>更新日期：2026-08-13</div>
+  </aside>
+
+  <main>
+    <div class="actions"><button type="button" id="themeButton">切换主题</button><button type="button" onclick="window.print()">打印 / 导出 PDF</button></div>
+    <header class="hero">
+      <span class="eyebrow">● 已验证可用 · 单文件 Mod · 不改核心</span>
+      <h1>让 Command Code 使用<br>OpenCode Go 订阅</h1>
+      <p>通过 Command Code Mod API 注册自定义 Provider，经本机 cc-switch 转发 Anthropic Messages 流量；同时保留官方 Provider 的一键回退能力。</p>
+      <div class="meta"><span>默认 deepseek-v4-flash</span><span>流式文字与 Thinking</span><span>工具调用闭环</span><span>用户数据位于 D 盘</span></div>
+    </header>
+
+    <section id="summary">
+      <div class="kicker">Executive summary</div><h2>成果摘要</h2>
+      <p class="lead">最终方案只增加一个启动脚本和一个 Mod 文件。官方启动器、Command Code 安装包及其打包代码均未修改，因此升级、停用和回退边界清晰。</p>
+      <div class="grid">
+        <div class="card"><div class="num">2</div><strong>正式成果文件</strong><p><code>cmdc-d.cmd</code> 与 <code>opencode-go.ts</code></p></div>
+        <div class="card"><div class="num">19</div><strong>已登记模型</strong><p>使用完整 <code>opencode-go/…</code> 命名空间</p></div>
+        <div class="card"><div class="num">0</div><strong>核心文件改动</strong><p><code>node_modules\command-code</code> 未打补丁</p></div>
+      </div>
+      <div class="callout success"><strong>最终状态</strong>文字流、Thinking 流、工具调用及工具结果回传均已验证；交互界面可以显示回答，不再只停留在 “Worked for …”。</div>
+    </section>
+
+    <section id="architecture">
+      <div class="kicker">Architecture</div><h2>方案架构</h2>
+      <p class="lead">启动器负责环境隔离和开关，Mod 负责协议转换与流式事件，cc-switch 负责订阅凭据和上游路由。</p>
+      <div class="flow">
+        <div class="flow-step"><b>cmdc-d.cmd</b><small>切换 HOME / USERPROFILE<br>设置 Provider 开关</small></div>
+        <div class="flow-step"><b>Command Code</b><small>加载 ModApi<br>执行 Agent 循环</small></div>
+        <div class="flow-step"><b>opencode-go.ts</b><small>消息与工具转换<br>SSE 解析及回调</small></div>
+        <div class="flow-step"><b>cc-switch</b><small>127.0.0.1:15721<br>Claude 处理链</small></div>
+        <div class="flow-step"><b>OpenCode Go</b><small>订阅鉴权<br>模型推理</small></div>
+      </div>
+      <div class="callout"><strong>返回链路同样重要</strong>上游 SSE 不能只在请求结束时合并成最终字符串。Mod 必须逐事件调用 <code>onTextDelta</code>、<code>onThinkingDelta</code>、<code>onMessageUpdate</code> 等回调，TUI 才会显示内容。</div>
+    </section>
+
+    <section id="deliverables">
+      <div class="kicker">Deliverables</div><h2>最终交付文件</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>文件</th><th>用途</th><th>正式安装位置</th><th>SHA-256</th></tr></thead>
+        <tbody>
+          <tr><td><a href="opencode-go.ts"><code>opencode-go.ts</code></a></td><td>Provider、协议转换、流式响应与命令</td>
+            <td><code>D:\WSL2Backup\cache_mv\.commandcode\mods\</code></td><td class="hash">763631C2A1BC55983A584ECCD56C9987E131C070CDFF4B2FDFFF1CB1F0527D5A</td></tr>
+          <tr><td><a href="cmdc-d.cmd"><code>cmdc-d.cmd</code></a></td><td>D 盘目录隔离、Provider 开关与参数转发</td>
+            <td><code>D:\WSL2Backup\cache_mv\node-v25.9.0\</code></td><td class="hash">9A598C7DD16F55F62576185693BC78C096F00EF2F7AC23E0A8E9EEAED49E80BD</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout success"><strong>安全边界</strong>Mod 不保存 OpenCode Go 的真实 Token，只访问本机 cc-switch。订阅凭据与上游 Provider 配置仍由 cc-switch 管理。</div>
+    </section>
+
+    <section id="prerequisites">
+      <div class="kicker">Prerequisites</div><h2>前置条件与关键配置</h2>
+      <ul class="check">
+        <li>Command Code 已安装；本方案验证版本为 <code>1.22.0</code>。</li>
+        <li>cc-switch 正在本机监听 <code>http://127.0.0.1:15721</code>。</li>
+        <li>cc-switch 的 Claude 通道当前 Provider 已配置为 OpenCode Go。</li>
+        <li>OpenCode Go 套餐与鉴权在 cc-switch 中可以正常调用。</li>
+        <li><b>Claude Provider 的“默认兜底模型”必须留空。</b></li>
+      </ul>
+      <div class="callout warning"><strong>为什么兜底模型必须留空？</strong>Mod 发送裸模型名，例如 <code>deepseek-v4-flash</code>。若设置了默认兜底，不包含 sonnet / opus / haiku / fable 的模型名可能被规则吞掉并改写。Sonnet、Opus、Haiku、Fable 的角色别名映射可以保留。</div>
+    </section>
+
+    <section id="install">
+      <div class="kicker">Installation</div><h2>安装、迁移与更新</h2>
+      <ol class="steps">
+        <li><strong>确认 cc-switch 已启动</strong><div class="code-wrap"><pre><code>Invoke-WebRequest http://127.0.0.1:15721/health</code></pre></div>正常应得到 HTTP 200。</li>
+        <li><strong>安装 Mod</strong><div class="code-wrap"><pre><code>Copy-Item ".\opencode-go.ts" "D:\WSL2Backup\cache_mv\.commandcode\mods\opencode-go.ts" -Force</code></pre></div></li>
+        <li><strong>安装启动脚本</strong><div class="code-wrap"><pre><code>Copy-Item ".\cmdc-d.cmd" "D:\WSL2Backup\cache_mv\node-v25.9.0\cmdc-d.cmd" -Force</code></pre></div></li>
+        <li><strong>彻底退出旧进程并重启</strong><div class="code-wrap"><pre><code>cmdc-d</code></pre></div>Mod 在进程启动时加载；旧会话不会自动采用新文件。</li>
+      </ol>
+      <div class="callout"><strong>迁移到另一台机器</strong>路径写在 <code>cmdc-d.cmd</code> 中。Node 或用户数据目录不同，应先调整脚本里的路径，再把 Mod 放到对应 HOME 的 <code>.commandcode\mods</code> 目录。</div>
+    </section>
+
+    <section id="usage">
+      <div class="kicker">Daily usage</div><h2>日常使用方法</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>操作</th><th>命令</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>默认启动</td><td><code>cmdc-d</code></td><td>启用 OpenCode Go，默认 <code>opencode-go/deepseek-v4-flash</code></td></tr>
+          <tr><td>查看状态</td><td><code>/opencode-go-status</code></td><td>显示 Provider、代理地址及模型数</td></tr>
+          <tr><td>查看模型</td><td><code>/og-model</code></td><td>输出 Mod 登记的模型</td></tr>
+          <tr><td>切换模型</td><td><code>/og-model qwen3.8-max</code></td><td>仅对当前会话生效</td></tr>
+          <tr><td>切回官方</td><td><code>cmdc-d --command-code</code></td><td>本次进程不注册 OpenCode Go</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout warning"><strong>用 <code>/og-model</code>，不要用内置 <code>/model</code> 判断接入结果</strong>内置目录可能将相同短模型名解析为官方 canonical ID。Mod 使用完整 ID，并通过专用命令绕开短名冲突。</div>
+    </section>
+
+    <section id="models">
+      <div class="kicker">Model catalog</div><h2>当前登记模型</h2>
+      <p class="lead">以下来自最终 Mod 的 <code>MODELS</code> 表。上游套餐发生变化时，需要同步更新并重启 Command Code。</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>模型</th><th>上下文</th><th>图像输入</th><th>模型</th><th>上下文</th><th>图像输入</th></tr></thead>
+        <tbody>
+          <tr><td>deepseek-v4-flash</td><td>1,000,000</td><td>—</td><td>deepseek-v4-pro</td><td>1,000,000</td><td>—</td></tr>
+          <tr><td>gpt-5.6-luna</td><td>1,050,000</td><td><span class="tag">支持</span></td><td>grok-4.5</td><td>500,000</td><td>—</td></tr>
+          <tr><td>glm-5.2</td><td>1,000,000</td><td>—</td><td>glm-5.1</td><td>200,000</td><td>—</td></tr>
+          <tr><td>kimi-k3</td><td>1,000,000</td><td>—</td><td>kimi-k2.7-code</td><td>256,000</td><td><span class="tag">支持</span></td></tr>
+          <tr><td>kimi-k2.6</td><td>256,000</td><td><span class="tag">支持</span></td><td>mimo-v2.5</td><td>1,000,000</td><td>—</td></tr>
+          <tr><td>mimo-v2.5-pro</td><td>1,000,000</td><td>—</td><td>hy3</td><td>262,000</td><td>—</td></tr>
+          <tr><td>minimax-m3</td><td>1,000,000</td><td><span class="tag">支持</span></td><td>minimax-m2.7</td><td>200,000</td><td><span class="tag">支持</span></td></tr>
+          <tr><td>minimax-m2.5</td><td>200,000</td><td><span class="tag">支持</span></td><td>qwen3.8-max</td><td>1,000,000</td><td><span class="tag">支持</span></td></tr>
+          <tr><td>qwen3.7-max</td><td>1,000,000</td><td><span class="tag">支持</span></td><td>qwen3.7-plus</td><td>256,000</td><td><span class="tag">支持</span></td></tr>
+          <tr><td>qwen3.6-plus</td><td>256,000</td><td><span class="tag">支持</span></td><td>—</td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="implementation">
+      <div class="kicker">Implementation notes</div><h2>核心实现要点</h2>
+      <h3>1. Provider 命名空间和启用条件</h3>
+      <p>Provider ID 为 <code>opencode-go</code>，模型为 <code>opencode-go/&lt;model&gt;</code>。只有 <code>CMDC_USE_OPENCODE_GO=1</code> 时注册，保证同一安装可以随时回到官方 Provider。</p>
+      <h3>2. Anthropic Messages 协议适配</h3>
+      <p>将 system、assistant、user、tool result 与工具 schema 转为 Anthropic Messages 请求；移除模型前缀后发送到 cc-switch 的 <code>/v1/messages</code>。</p>
+      <h3>3. 流式事件状态机</h3>
+      <p>解析 <code>content_block_start</code>、<code>content_block_delta</code>、<code>content_block_stop</code>、<code>message_delta</code> 和错误事件，分别维护 text、thinking、tool-use 状态并通知 TUI。</p>
+      <h3>4. 工具调用闭环</h3>
+      <p>累计 <code>input_json_delta</code>，生成完整 tool-use block；Command Code 执行工具并返回 tool result 后，允许模型发起第二次请求。只测试普通聊天不足以证明 Agent 真正可用。</p>
+      <h3>5. 错误与用量</h3>
+      <p>代理不可达、HTTP 非 2xx、Anthropic error event，以及流结束但没有回答或工具调用时均抛出明确错误；Token usage 增量合并，避免后续事件抹掉输入 Token。</p>
+    </section>
+
+    <section id="pitfalls">
+      <div class="kicker">Lessons learned</div><h2>踩过的坑与得到的经验</h2>
+      <div class="grid">
+        <div class="card"><strong>模型显示正确 ≠ Provider 可用</strong><p>标题栏只证明 ID 被设置，不能证明网络、协议和 UI 回调全部打通。</p></div>
+        <div class="card"><strong>最终字符串可用 ≠ 交互流可用</strong><p><code>--print</code> 曾有答案，但 TUI 没收到 delta，因此只显示 Worked。</p></div>
+        <div class="card"><strong>回调是接口契约</strong><p>direct transport 必须触发流式 callbacks；Promise 最终返回不能替代它。</p></div>
+        <div class="card"><strong>短模型名存在冲突</strong><p>内置 <code>/model</code> 可能选中官方 canonical ID，必须使用完整命名空间。</p></div>
+        <div class="card"><strong>兜底规则会改写模型</strong><p>请求返回不代表命中目标模型，需要检查 cc-switch alias 与 fallback。</p></div>
+        <div class="card"><strong>验证完整 Agent 回合</strong><p>最低验收应覆盖文字、Thinking、tool_use、工具结果和第二次响应。</p></div>
+      </div>
+      <div class="callout"><strong>推荐调试顺序</strong>代理健康 → 原始 SSE → Provider 最终返回 → 流式 delta → 强制工具调用。这样能快速区分网络、协议、回调和 Agent 循环问题。</div>
+    </section>
+
+    <section id="troubleshooting">
+      <div class="kicker">Troubleshooting</div><h2>常见问题排查</h2>
+      <details open><summary>显示 “Worked for …”，但没有回答</summary><div>完全退出旧进程后重新运行 <code>cmdc-d</code>。仍有问题时检查是否出现 <code>text_delta</code>，不能仅依据退出码 0 或请求完成判断成功。</div></details>
+      <details><summary><code>/model</code> 仍显示官方模型</summary><div>这是内置目录和短名称解析造成的混淆。改用 <code>/og-model</code> 查看、切换；用 <code>/opencode-go-status</code> 检查 Provider。</div></details>
+      <details><summary>选择 A 模型，实际似乎请求 B 模型</summary><div>检查 cc-switch Claude Provider 的“默认兜底模型”，应留空；并确认 Claude 通道当前 Provider 是 OpenCode Go。</div></details>
+      <details><summary>代理不可达或 HTTP 错误</summary><div>确认 cc-switch 监听 15721，并执行健康检查。若端口变化，同步修改 Mod 中的 <code>CC_SWITCH_URL</code>。</div></details>
+      <details><summary>修改 Mod 后行为没变化</summary><div>Mod 在启动时加载。结束全部旧进程后重启，并运行 <code>cmdc-d mods list</code>，确认只加载一个 <code>opencode-go</code>。</div></details>
+      <details><summary>工具调用停住或 JSON 参数不完整</summary><div>检查 <code>input_json_delta</code> 是否完整累计，block stop 时是否生成有效 tool-use；工具结束后还应出现第二次 model request。</div></details>
+    </section>
+
+    <section id="verification">
+      <div class="kicker">Acceptance</div><h2>验证方法与验收结果</h2>
+      <h3>快速自检</h3>
+      <div class="code-wrap"><pre><code># 代理健康
+Invoke-WebRequest http://127.0.0.1:15721/health
+
+# 确认只加载一个正式 Mod
+cmdc-d mods list
+
+# 非交互流式测试
+cmdc-d --print "请只回答：安装后流式正常。" --no-session --max-turns 1 --skip-onboarding --output-format json</code></pre></div>
+      <p>第三项应满足：请求模型为 <code>opencode-go/deepseek-v4-flash</code>，出现一个或多个 <code>text_delta</code>，最终退出码为 0。</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>测试</th><th>结果</th><th>证据摘要</th></tr></thead>
+        <tbody>
+          <tr><td>cc-switch 健康</td><td><span class="tag">通过</span></td><td>15721 返回 HTTP 200</td></tr>
+          <tr><td>自定义模型路由</td><td><span class="tag">通过</span></td><td>opencode-go/deepseek-v4-flash</td></tr>
+          <tr><td>文字流</td><td><span class="tag">通过</span></td><td>6 个 text_delta，合并为“安装后流式正常。”</td></tr>
+          <tr><td>Thinking 流</td><td><span class="tag">通过</span></td><td>start / delta / end 完整</td></tr>
+          <tr><td>工具闭环</td><td><span class="tag">通过</span></td><td>read_file 完成，第二轮回答 TOOL_STREAM_OK</td></tr>
+          <tr><td>官方核心完整性</td><td><span class="tag">通过</span></td><td>本次修改时段写入文件数为 0</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="rollback">
+      <div class="kicker">Operations</div><h2>回退、升级与维护</h2>
+      <h3>临时回退</h3><div class="code-wrap"><pre><code>cmdc-d --command-code</code></pre></div>
+      <p>本次进程不注册 OpenCode Go，直接使用官方 Provider，无需删除文件。</p>
+      <h3>长期停用</h3>
+      <p>将 <code>opencode-go.ts</code> 移出当前 HOME 的 <code>.commandcode\mods</code>，或持续使用 <code>--command-code</code>。不要修改官方 <code>cmdc.cmd</code>。</p>
+      <h3>Command Code 升级后</h3>
+      <ul>
+        <li>运行 <code>cmdc-d mods list</code>，确认 Mod 仍能加载。</li>
+        <li>重新执行文字 delta 测试和一次工具调用测试。</li>
+        <li>若 ModApi 回调契约变化，以新版官方 Provider 的流消费行为为准适配。</li>
+        <li>以本目录文件作为可复现基线，再修改正式安装副本。</li>
+      </ul>
+      <div class="callout danger"><strong>维护原则</strong>不向 <code>node_modules\command-code</code> 打补丁。适配全部放在 Mod 和自定义启动器中，避免 npm 更新覆盖，也避免官方代码与本地修改互相污染。</div>
+    </section>
+
+    <footer><b>Command Code × OpenCode Go 技术方案</b><br>基于 2026-08-13 的本机验证结果生成。模型范围、套餐能力与 ModApi 可能随版本变化；升级后请按“验证与验收”重新冒烟测试。</footer>
+  </main>
+</div>
+<script>
+(function(){
+  var root=document.documentElement,btn=document.getElementById("themeButton"),saved=localStorage.getItem("cc-og-theme");
+  if(saved)root.dataset.theme=saved;
+  btn.addEventListener("click",function(){var next=root.dataset.theme==="dark"?"light":"dark";root.dataset.theme=next;localStorage.setItem("cc-og-theme",next)});
+  document.querySelectorAll("pre").forEach(function(pre){
+    var wrap=pre.parentElement;if(!wrap.classList.contains("code-wrap"))return;
+    var b=document.createElement("button");b.type="button";b.className="copy";b.textContent="复制";
+    b.addEventListener("click",function(){navigator.clipboard.writeText(pre.innerText).then(function(){b.textContent="已复制";setTimeout(function(){b.textContent="复制"},1200)})});
+    wrap.appendChild(b)
+  });
+  var links=Array.from(document.querySelectorAll("nav a")),sections=Array.from(document.querySelectorAll("main section[id]"));
+  if("IntersectionObserver" in window){var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(!e.isIntersecting)return;
+    links.forEach(function(a){a.classList.toggle("active",a.getAttribute("href")==="#"+e.target.id)})})},{rootMargin:"-18% 0px -70% 0px"});
+    sections.forEach(function(s){obs.observe(s)})}
+}());
+</script>
+</body>
+</html>
