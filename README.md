@@ -82,6 +82,28 @@ cmdc-d
 
 Use `/og-model` instead of the built-in `/model` command for this provider. The built-in catalog can resolve duplicate short names to Command Code's official canonical model IDs; `/og-model` always sets the complete `opencode-go/<model>` ID.
 
+### Important: displayed model vs. model actually used
+
+`/og-model` changes the **live model for the current Command Code session** through `cmd.setModel()`. It does not rewrite Command Code's official user-scoped `model` setting. Consequently, after running:
+
+```text
+/og-model qwen3.8-max
+```
+
+some Command Code surfaces may still say `deepseek/deepseek-v4-flash`, including:
+
+- answers produced after the agent runs `cmdc config get model --json`;
+- the `Model` field in an exported session;
+- other UI or metadata backed by the official user-scoped `/model` setting.
+
+That stale display does **not** mean the switch failed. The custom transport receives the live full ID, strips the `opencode-go/` prefix, and sends `qwen3.8-max` to cc-switch. To determine the model actually used, prefer these sources, in order:
+
+1. the model recorded in the OpenCode Go usage/billing history;
+2. the `model_request_start` event in `--output-format json` output;
+3. the confirmation printed by `/og-model`.
+
+The official user-scoped model value and the active mod-managed session model are separate state. Restarting `cmdc-d` resets the mod-managed model to its default, `opencode-go/deepseek-v4-flash`.
+
 The default model is:
 
 ```text
@@ -126,6 +148,8 @@ The third command should show:
 
 Also test at least one real tool call after Command Code or the mod is upgraded. Plain text completion alone does not verify the full agent loop.
 
+To verify a session-only model switch, run `/og-model qwen3.8-max`, send a new prompt, and check the OpenCode Go usage history. A test performed on 2026-08-14 showed new `qwen3.8-max` usage entries even though the exported Command Code session and `cmdc config get model --json` still reported `deepseek/deepseek-v4-flash`.
+
 ## Troubleshooting
 
 ### The UI shows `Worked for ...` but no answer
@@ -135,6 +159,10 @@ Fully exit the old process and restart with `cmdc-d`. If it persists, inspect th
 ### `/model` shows official Command Code models
 
 This is a short-name resolution conflict. Use `/og-model` and `/opencode-go-status` for the custom provider.
+
+### I switched with `/og-model`, but Command Code still says DeepSeek
+
+This is a known display/state separation, not sufficient evidence of a routing failure. `/og-model` updates the live session model owned by the mod, while `cmdc config get model --json` and session export metadata can continue to read the unchanged official user-scoped setting. Check the OpenCode Go usage history or JSON `model_request_start` event to identify the model actually called.
 
 ### The selected model appears to be replaced
 

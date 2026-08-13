@@ -109,7 +109,7 @@
       <a href="#implementation">实现要点</a><a href="#pitfalls">踩坑与心得</a><a href="#troubleshooting">排障手册</a>
       <a href="#verification">验证与验收</a><a href="#rollback">回退与维护</a>
     </nav>
-    <div class="side-note"><b>文档基线</b><br>Command Code 1.22.0<br>Windows / PowerShell<br>更新日期：2026-08-13</div>
+    <div class="side-note"><b>文档基线</b><br>Command Code 1.22.0<br>Windows / PowerShell<br>更新日期：2026-08-14</div>
   </aside>
 
   <main>
@@ -195,6 +195,19 @@
         </tbody>
       </table></div>
       <div class="callout warning"><strong>用 <code>/og-model</code>，不要用内置 <code>/model</code> 判断接入结果</strong>内置目录可能将相同短模型名解析为官方 canonical ID。Mod 使用完整 ID，并通过专用命令绕开短名冲突。</div>
+      <h3>界面显示模型与实际调用模型可能不同</h3>
+      <p><code>/og-model</code> 通过 <code>cmd.setModel()</code> 修改的是当前进程内、当前会话的实时模型，不会改写 Command Code 官方 user 作用域的 <code>model</code> 配置。因此切换到 <code>qwen3.8-max</code> 后，智能体若执行 <code>cmdc config get model --json</code>，或查看会话导出顶部的 <code>Model</code> 字段，仍可能得到 <code>deepseek/deepseek-v4-flash</code>。</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>观察位置</th><th>读取的状态</th><th>能否证明实际调用模型</th></tr></thead>
+        <tbody>
+          <tr><td><code>cmdc config get model --json</code></td><td>官方 user 作用域持久配置</td><td>不能；Mod 不改写该值</td></tr>
+          <tr><td>会话导出的 <code>Model</code> 字段</td><td>可能沿用官方配置或导出元数据</td><td>不能作为唯一依据</td></tr>
+          <tr><td><code>/og-model</code> 返回消息</td><td>Mod 当前会话模型</td><td>可以确认切换指令已生效</td></tr>
+          <tr><td>JSON 的 <code>model_request_start</code></td><td>本轮发给自定义 Provider 的实时模型</td><td>可以</td></tr>
+          <tr><td>OpenCode Go 使用/计费流水</td><td>上游实际接收并计费的模型</td><td><b>最终取证依据</b></td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout success"><strong>2026-08-14 实测结论</strong>执行 <code>/og-model qwen3.8-max</code> 后，Command Code 会话导出和配置查询仍显示 <code>deepseek/deepseek-v4-flash</code>；同一时间段的 OpenCode Go 官方流水已连续出现 <code>qwen3.8-max</code> 请求，说明真实模型路由已经完成切换。重新启动 <code>cmdc-d</code> 后，会话模型会恢复 Mod 默认值 <code>opencode-go/deepseek-v4-flash</code>。</div>
     </section>
 
     <section id="models">
@@ -234,7 +247,7 @@
     <section id="pitfalls">
       <div class="kicker">Lessons learned</div><h2>踩过的坑与得到的经验</h2>
       <div class="grid">
-        <div class="card"><strong>模型显示正确 ≠ Provider 可用</strong><p>标题栏只证明 ID 被设置，不能证明网络、协议和 UI 回调全部打通。</p></div>
+        <div class="card"><strong>界面显示 ≠ 实际路由</strong><p>配置查询和会话导出可能继续显示官方 user 作用域模型；实际模型应以本轮请求事件和上游流水为准。</p></div>
         <div class="card"><strong>最终字符串可用 ≠ 交互流可用</strong><p><code>--print</code> 曾有答案，但 TUI 没收到 delta，因此只显示 Worked。</p></div>
         <div class="card"><strong>回调是接口契约</strong><p>direct transport 必须触发流式 callbacks；Promise 最终返回不能替代它。</p></div>
         <div class="card"><strong>短模型名存在冲突</strong><p>内置 <code>/model</code> 可能选中官方 canonical ID，必须使用完整命名空间。</p></div>
@@ -248,6 +261,7 @@
       <div class="kicker">Troubleshooting</div><h2>常见问题排查</h2>
       <details open><summary>显示 “Worked for …”，但没有回答</summary><div>完全退出旧进程后重新运行 <code>cmdc-d</code>。仍有问题时检查是否出现 <code>text_delta</code>，不能仅依据退出码 0 或请求完成判断成功。</div></details>
       <details><summary><code>/model</code> 仍显示官方模型</summary><div>这是内置目录和短名称解析造成的混淆。改用 <code>/og-model</code> 查看、切换；用 <code>/opencode-go-status</code> 检查 Provider。</div></details>
+      <details><summary>已用 <code>/og-model</code> 切换，但智能体仍自称 DeepSeek</summary><div>这是显示层与实时会话状态分离，不足以证明切换失败。智能体调用 <code>cmdc config get model --json</code> 时读到的是未修改的官方 user 作用域配置，会话导出也可能沿用该元数据。请查看 JSON 的 <code>model_request_start</code> 或 OpenCode Go 官方使用流水；后者是上游实际接收和计费模型的最终依据。</div></details>
       <details><summary>选择 A 模型，实际似乎请求 B 模型</summary><div>检查 cc-switch Claude Provider 的“默认兜底模型”，应留空；并确认 Claude 通道当前 Provider 是 OpenCode Go。</div></details>
       <details><summary>代理不可达或 HTTP 错误</summary><div>确认 cc-switch 监听 15721，并执行健康检查。若端口变化，同步修改 Mod 中的 <code>CC_SWITCH_URL</code>。</div></details>
       <details><summary>修改 Mod 后行为没变化</summary><div>Mod 在启动时加载。结束全部旧进程后重启，并运行 <code>cmdc-d mods list</code>，确认只加载一个 <code>opencode-go</code>。</div></details>
@@ -265,7 +279,7 @@ cmdc-d mods list
 
 # 非交互流式测试
 cmdc-d --print "请只回答：安装后流式正常。" --no-session --max-turns 1 --skip-onboarding --output-format json</code></pre></div>
-      <p>第三项应满足：请求模型为 <code>opencode-go/deepseek-v4-flash</code>，出现一个或多个 <code>text_delta</code>，最终退出码为 0。</p>
+      <p>第三项应满足：请求模型为 <code>opencode-go/deepseek-v4-flash</code>，出现一个或多个 <code>text_delta</code>，最终退出码为 0。验证模型切换时，在交互会话执行 <code>/og-model qwen3.8-max</code> 并发送新问题；不要用官方配置查询或会话导出字段作为唯一依据，应检查 <code>model_request_start</code> 或 OpenCode Go 上游流水。</p>
       <div class="table-wrap"><table>
         <thead><tr><th>测试</th><th>结果</th><th>证据摘要</th></tr></thead>
         <tbody>
@@ -274,6 +288,7 @@ cmdc-d --print "请只回答：安装后流式正常。" --no-session --max-turn
           <tr><td>文字流</td><td><span class="tag">通过</span></td><td>6 个 text_delta，合并为“安装后流式正常。”</td></tr>
           <tr><td>Thinking 流</td><td><span class="tag">通过</span></td><td>start / delta / end 完整</td></tr>
           <tr><td>工具闭环</td><td><span class="tag">通过</span></td><td>read_file 完成，第二轮回答 TOOL_STREAM_OK</td></tr>
+          <tr><td>会话内模型切换</td><td><span class="tag">通过</span></td><td>界面仍显示 DeepSeek 时，上游流水已记录 qwen3.8-max</td></tr>
           <tr><td>官方核心完整性</td><td><span class="tag">通过</span></td><td>本次修改时段写入文件数为 0</td></tr>
         </tbody>
       </table></div>
@@ -295,7 +310,7 @@ cmdc-d --print "请只回答：安装后流式正常。" --no-session --max-turn
       <div class="callout danger"><strong>维护原则</strong>不向 <code>node_modules\command-code</code> 打补丁。适配全部放在 Mod 和自定义启动器中，避免 npm 更新覆盖，也避免官方代码与本地修改互相污染。</div>
     </section>
 
-    <footer><b>Command Code × OpenCode Go 技术方案</b><br>基于 2026-08-13 的本机验证结果生成。模型范围、套餐能力与 ModApi 可能随版本变化；升级后请按“验证与验收”重新冒烟测试。</footer>
+    <footer><b>Command Code × OpenCode Go 技术方案</b><br>基于 2026-08-13 至 2026-08-14 的本机验证结果生成。模型范围、套餐能力与 ModApi 可能随版本变化；升级后请按“验证与验收”重新冒烟测试。</footer>
   </main>
 </div>
 <script>

@@ -82,6 +82,28 @@ cmdc-d
 
 该 Provider 应优先使用 `/og-model`，不要通过内置 `/model` 判断是否接入成功。内置模型目录可能把相同的短模型名解析到 Command Code 官方 canonical ID；`/og-model` 始终设置完整的 `opencode-go/<model>` ID。
 
+### 重要：界面显示模型与实际调用模型可能不同
+
+`/og-model` 通过 `cmd.setModel()` 修改的是 **Command Code 当前会话的实时模型**，不会改写 Command Code 官方 user 作用域的 `model` 配置。因此执行：
+
+```text
+/og-model qwen3.8-max
+```
+
+以后，以下位置仍可能显示 `deepseek/deepseek-v4-flash`：
+
+- 智能体执行 `cmdc config get model --json` 后给出的回答；
+- 导出会话顶部的 `Model` 字段；
+- 其他读取官方 user 作用域 `/model` 设置的界面或元数据。
+
+这种旧显示 **不代表切换失败**。自定义 transport 会收到当前会话的完整模型 ID，移除 `opencode-go/` 前缀，然后把 `qwen3.8-max` 发给 cc-switch。判断实际调用模型时，建议按以下优先级取证：
+
+1. OpenCode Go 官方使用记录或计费流水中的模型；
+2. `--output-format json` 输出中的 `model_request_start` 事件；
+3. `/og-model` 命令返回的切换确认。
+
+官方 user 作用域模型值与 Mod 管理的当前会话模型是两套独立状态。重新启动 `cmdc-d` 后，Mod 管理的模型会恢复默认值 `opencode-go/deepseek-v4-flash`。
+
 默认模型为：
 
 ```text
@@ -126,6 +148,8 @@ cmdc-d --print "请只回答：安装后流式正常。" `
 
 Command Code 或 Mod 升级后，还应强制执行一次真实工具调用。普通文字回答并不能验证完整 Agent 循环。
 
+验证会话内模型切换时，可先执行 `/og-model qwen3.8-max`，再发送一个新问题，并查看 OpenCode Go 使用流水。2026-08-14 的实际测试中，Command Code 会话导出和 `cmdc config get model --json` 仍显示 `deepseek/deepseek-v4-flash`，但 OpenCode Go 流水已经连续记录新的 `qwen3.8-max` 调用，证明实际路由已经切换。
+
 ## 常见问题
 
 ### 只显示 `Worked for ...`，没有回答
@@ -135,6 +159,10 @@ Command Code 或 Mod 升级后，还应强制执行一次真实工具调用。�
 ### `/model` 仍然显示官方模型
 
 这是短名称解析冲突。自定义 Provider 请使用 `/og-model` 和 `/opencode-go-status`。
+
+### 已用 `/og-model` 切换，但 Command Code 仍自称 DeepSeek
+
+这是已知的显示层与会话状态分离，不能据此判断路由失败。`/og-model` 更新的是 Mod 持有的实时会话模型；`cmdc config get model --json` 和会话导出元数据仍可能读取未修改的官方 user 作用域配置。请以 OpenCode Go 官方流水或 JSON 事件中的 `model_request_start` 作为实际调用模型的依据。
 
 ### 选择的模型似乎被替换
 
