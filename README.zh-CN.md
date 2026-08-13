@@ -148,7 +148,26 @@ cmdc-d --print "请只回答：安装后流式正常。" `
 
 Command Code 或 Mod 升级后，还应强制执行一次真实工具调用。普通文字回答并不能验证完整 Agent 循环。
 
-验证会话内模型切换时，可先执行 `/og-model qwen3.8-max`，再发送一个新问题，并查看 OpenCode Go 使用流水。2026-08-14 的实际测试中，Command Code 会话导出和 `cmdc config get model --json` 仍显示 `deepseek/deepseek-v4-flash`，但 OpenCode Go 流水已经连续记录新的 `qwen3.8-max` 调用，证明实际路由已经切换。
+验证会话内模型切换时，可先执行 `/og-model qwen3.8-max`，再发送一个新问题，并查看 OpenCode Go 使用流水。
+
+### 2026-08-14 实际对比数据
+
+下表时间均为中国标准时间（UTC+8）；上游数据来自所提供 OpenCode Go 使用流水截图中可见的记录。
+
+| 证据来源 | 时间 | 显示/实际使用模型 | 输入 Token | 输出 Token | 费用 |
+| --- | --- | --- | ---: | ---: | ---: |
+| OpenCode Go 流水 | 03:10 | `deepseek-v4-flash` | 34,075 | 44 | Go ($0.0001) |
+| OpenCode Go 流水 | 03:10 | `deepseek-v4-flash` | 33,951 | 81 | Go ($0.0002) |
+| OpenCode Go 流水 | 03:10 | `deepseek-v4-flash` | 33,435 | 194 | Go ($0.0017) |
+| OpenCode Go 流水 | 03:12 | `qwen3.8-max` | 33,622 | 126 | Go ($0.0680) |
+| OpenCode Go 流水 | 03:12 | `qwen3.8-max` | 33,711 | 71 | Go ($0.0105) |
+| OpenCode Go 流水 | 03:12 | `qwen3.8-max` | 33,800 | 63 | Go ($0.0106) |
+| OpenCode Go 流水 | 03:12 | `qwen3.8-max` | 33,889 | 81 | Go ($0.0091) |
+| OpenCode Go 流水 | 03:13 | `qwen3.8-max` | 34,022 | 135 | Go ($0.0097) |
+| Command Code 会话导出 | 03:14:54 | `deepseek/deepseek-v4-flash` | — | — | — |
+| 会话内执行 `cmdc config get model --json` | 导出前 | `deepseek/deepseek-v4-flash`，scope 为 `user` | — | — | — |
+
+截图可见范围内，03:10 的 3 笔 DeepSeek 调用合计输入 101,461、输出 319 Token；执行 `/og-model qwen3.8-max` 后，03:12–03:13 的 5 笔 Qwen 调用合计输入 169,044、输出 476 Token。但是会话在 03:14:54 导出时（原始时间戳为 `2026-08-13T19:14:54.504Z`），顶部仍标记为 DeepSeek。这个先后顺序表明：实时上游路由已经切换，而官方 user 作用域配置及显示元数据仍停留在旧值。
 
 ## 常见问题
 

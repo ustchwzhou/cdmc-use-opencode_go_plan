@@ -148,7 +148,26 @@ The third command should show:
 
 Also test at least one real tool call after Command Code or the mod is upgraded. Plain text completion alone does not verify the full agent loop.
 
-To verify a session-only model switch, run `/og-model qwen3.8-max`, send a new prompt, and check the OpenCode Go usage history. A test performed on 2026-08-14 showed new `qwen3.8-max` usage entries even though the exported Command Code session and `cmdc config get model --json` still reported `deepseek/deepseek-v4-flash`.
+To verify a session-only model switch, run `/og-model qwen3.8-max`, send a new prompt, and check the OpenCode Go usage history.
+
+### Actual comparison from the 2026-08-14 test
+
+All times below are China Standard Time (UTC+8). The upstream rows are the entries visible in the supplied OpenCode Go usage screenshot.
+
+| Evidence | Time | Reported/used model | Input tokens | Output tokens | Cost |
+| --- | --- | --- | ---: | ---: | ---: |
+| OpenCode Go usage | 03:10 | `deepseek-v4-flash` | 34,075 | 44 | Go ($0.0001) |
+| OpenCode Go usage | 03:10 | `deepseek-v4-flash` | 33,951 | 81 | Go ($0.0002) |
+| OpenCode Go usage | 03:10 | `deepseek-v4-flash` | 33,435 | 194 | Go ($0.0017) |
+| OpenCode Go usage | 03:12 | `qwen3.8-max` | 33,622 | 126 | Go ($0.0680) |
+| OpenCode Go usage | 03:12 | `qwen3.8-max` | 33,711 | 71 | Go ($0.0105) |
+| OpenCode Go usage | 03:12 | `qwen3.8-max` | 33,800 | 63 | Go ($0.0106) |
+| OpenCode Go usage | 03:12 | `qwen3.8-max` | 33,889 | 81 | Go ($0.0091) |
+| OpenCode Go usage | 03:13 | `qwen3.8-max` | 34,022 | 135 | Go ($0.0097) |
+| Command Code session export | 03:14:54 | `deepseek/deepseek-v4-flash` | — | — | — |
+| `cmdc config get model --json` inside that session | before export | `deepseek/deepseek-v4-flash`, scope `user` | — | — | — |
+
+In the visible upstream sample, the three 03:10 DeepSeek calls total 101,461 input and 319 output tokens. After `/og-model qwen3.8-max`, the five 03:12–03:13 Qwen calls total 169,044 input and 476 output tokens. Nevertheless, the session exported at 03:14:54 (the source timestamp is `2026-08-13T19:14:54.504Z`) still labeled itself DeepSeek. This time ordering demonstrates that the live upstream route changed while the official user-scoped/display metadata remained stale.
 
 ## Troubleshooting
 
